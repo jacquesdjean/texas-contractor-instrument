@@ -1,0 +1,18 @@
+# Counties to monitor for new contractor licenses
+# Field: business_county (uppercase values in TDLR API)
+
+primary_counties:
+  - TRAVIS
+  - WILLIAMSON
+  - HAYS
+
+secondary_counties:
+  - BURNET
+  - BASTROP
+  - BELL
+  - CALDWELL
+  - BLANCO
+  - LLANO
+  - LAMPASAS
+  - LEE
+  - MILAM

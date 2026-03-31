@@ -1,0 +1,200 @@
+[
+  {
+    "license_type": "Electrical Contractor",
+    "license_number": "19901",
+    "license_subtype": "EC",
+    "business_name": "RPE ENTERPRISES LLC",
+    "business_county": "TRAVIS",
+    "business_address_line1": "16110 FM 1826",
+    "business_city_state_zip": "AUSTIN TX 78737",
+    "business_telephone": "5126528463",
+    "owner_name": "RPE ENTERPRISES LLC",
+    "owner_telephone": "5126528463",
+    "mailing_address_county": "TRAVIS",
+    "license_expiration_date_mmddccyy": "10/04/2026",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-97.74299, 30.26759]
+    }
+  },
+  {
+    "license_type": "Master Electrician",
+    "license_number": "20501",
+    "license_subtype": "",
+    "business_name": "SMITH ELECTRIC",
+    "business_county": "WILLIAMSON",
+    "business_address_line1": "200 MAIN ST",
+    "business_city_state_zip": "ROUND ROCK TX 78664",
+    "business_telephone": "5125551234",
+    "owner_name": "JOHN SMITH",
+    "owner_telephone": "5125551234",
+    "mailing_address_county": "WILLIAMSON",
+    "license_expiration_date_mmddccyy": "03/15/2027",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-97.6789, 30.5083]
+    }
+  },
+  {
+    "license_type": "Journeyman Electrician",
+    "license_number": "31005",
+    "license_subtype": "",
+    "business_name": "LONE STAR WIRING",
+    "business_county": "HAYS",
+    "business_address_line1": "450 ELM DR",
+    "business_city_state_zip": "SAN MARCOS TX 78666",
+    "business_telephone": "5125559876",
+    "owner_name": "MARIA GARCIA",
+    "owner_telephone": "5125559876",
+    "mailing_address_county": "HAYS",
+    "license_expiration_date_mmddccyy": "06/30/2026",
+    "business_mailing": null
+  },
+  {
+    "license_type": "A/C Contractor",
+    "license_number": "42100",
+    "license_subtype": "",
+    "business_name": "CENTRAL TX COOLING LLC",
+    "business_county": "TRAVIS",
+    "business_address_line1": "8800 BURNET RD",
+    "business_city_state_zip": "AUSTIN TX 78757",
+    "business_telephone": "5125554321",
+    "owner_name": "JAMES WILSON",
+    "owner_telephone": "5125554321",
+    "mailing_address_county": "TRAVIS",
+    "license_expiration_date_mmddccyy": "12/31/2026",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-97.7414, 30.3672]
+    }
+  },
+  {
+    "license_type": "A/C Technician",
+    "license_number": "42200",
+    "license_subtype": "",
+    "business_name": "COOL AIR SERVICES",
+    "business_county": "BELL",
+    "business_address_line1": "100 INDUSTRIAL BLVD",
+    "business_city_state_zip": "KILLEEN TX 76541",
+    "business_telephone": "2545551111",
+    "owner_name": "DAVID JOHNSON",
+    "owner_telephone": "2545551111",
+    "mailing_address_county": "BELL",
+    "license_expiration_date_mmddccyy": "09/15/2026",
+    "business_mailing": null
+  },
+  {
+    "license_type": "Water Well Driller/Pump Installer",
+    "license_number": "55010",
+    "license_subtype": "",
+    "business_name": "HILL COUNTRY WELLS",
+    "business_county": "BURNET",
+    "business_address_line1": "300 RANCH RD",
+    "business_city_state_zip": "BURNET TX 78611",
+    "business_telephone": "5125552222",
+    "owner_name": "ROBERT BROWN",
+    "owner_telephone": "5125552222",
+    "mailing_address_county": "BURNET",
+    "license_expiration_date_mmddccyy": "05/20/2027",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-98.2286, 30.7588]
+    }
+  },
+  {
+    "license_type": "Appliance Installation Contractor",
+    "license_number": "60300",
+    "license_subtype": "",
+    "business_name": "APPLIANCE PROS INC",
+    "business_county": "WILLIAMSON",
+    "business_address_line1": "750 TECH DR",
+    "business_city_state_zip": "CEDAR PARK TX 78613",
+    "business_telephone": "5125553333",
+    "owner_name": "SARAH DAVIS",
+    "owner_telephone": "5125553333",
+    "mailing_address_county": "WILLIAMSON",
+    "license_expiration_date_mmddccyy": "11/01/2026",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-97.8203, 30.5052]
+    }
+  },
+  {
+    "license_type": "Electrical Contractor",
+    "license_number": "19950",
+    "license_subtype": "EC",
+    "business_name": "BASTROP POWER SYSTEMS",
+    "business_county": "BASTROP",
+    "business_address_line1": "500 COLORADO ST",
+    "business_city_state_zip": "BASTROP TX 78602",
+    "business_telephone": "",
+    "owner_name": "MIKE TAYLOR",
+    "owner_telephone": "5125554444",
+    "mailing_address_county": "BASTROP",
+    "license_expiration_date_mmddccyy": "08/22/2026",
+    "business_mailing": null
+  },
+  {
+    "license_type": "A/C Contractor",
+    "license_number": "42150",
+    "license_subtype": "",
+    "business_name": "LLANO HVAC SOLUTIONS",
+    "business_county": "LLANO",
+    "business_address_line1": "220 OAK ST",
+    "business_city_state_zip": "LLANO TX 78643",
+    "business_telephone": "",
+    "owner_name": "LISA MARTINEZ",
+    "owner_telephone": "",
+    "mailing_address_county": "LLANO",
+    "license_expiration_date_mmddccyy": "04/10/2027",
+    "business_mailing": null
+  },
+  {
+    "license_type": "Electrical Contractor",
+    "license_number": "19975",
+    "license_subtype": "EC",
+    "business_name": "CALDWELL ELECTRICAL SERVICES",
+    "business_county": "CALDWELL",
+    "business_address_line1": "180 PECAN ST",
+    "business_city_state_zip": "LOCKHART TX 78644",
+    "business_telephone": "5125555555",
+    "owner_name": "WILLIAM THOMAS",
+    "owner_telephone": "5125555555",
+    "mailing_address_county": "CALDWELL",
+    "license_expiration_date_mmddccyy": "07/18/2026",
+    "business_mailing": {
+      "type": "Point",
+      "coordinates": [-97.6700, 29.8849]
+    }
+  },
+  {
+    "license_type": "Journeyman Electrician",
+    "license_number": "31050",
+    "license_subtype": "",
+    "business_name": "MILAM COUNTY ELECTRIC",
+    "business_county": "MILAM",
+    "business_address_line1": "60 COMMERCE ST",
+    "business_city_state_zip": "CAMERON TX 76520",
+    "business_telephone": "2545556666",
+    "owner_name": "CARLOS HERNANDEZ",
+    "owner_telephone": "2545556666",
+    "mailing_address_county": "MILAM",
+    "license_expiration_date_mmddccyy": "01/25/2027",
+    "business_mailing": null
+  },
+  {
+    "license_type": "Master Electrician",
+    "license_number": "20550",
+    "license_subtype": "",
+    "business_name": "LAMPASAS ELECTRIC CO",
+    "business_county": "LAMPASAS",
+    "business_address_line1": "400 KEY AVE",
+    "business_city_state_zip": "LAMPASAS TX 76550",
+    "business_telephone": "",
+    "owner_name": "ANNA WHITE",
+    "owner_telephone": "",
+    "mailing_address_county": "LAMPASAS",
+    "license_expiration_date_mmddccyy": "02/28/2027",
+    "business_mailing": null
+  }
+]

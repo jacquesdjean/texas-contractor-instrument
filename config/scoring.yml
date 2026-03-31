@@ -1,0 +1,22 @@
+# Scoring weights for ranking new licenses by recruitment value
+
+license_type_scores:
+  "Electrical Contractor": 100
+  "A/C Contractor": 90
+  "Appliance Installation Contractor": 80
+  "Water Well Driller/Pump Installer": 75
+  "Master Electrician": 60
+  "Journeyman Electrician": 30
+  "A/C Technician": 25
+
+# Bonus points added to base score
+bonuses:
+  has_phone_number: 10
+  in_primary_county: 15
+  has_geocoordinates: 5
+
+# Primary counties eligible for the in_primary_county bonus
+primary_counties:
+  - TRAVIS
+  - WILLIAMSON
+  - HAYS

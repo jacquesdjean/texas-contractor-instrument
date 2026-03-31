@@ -1,0 +1,38 @@
+# TDLR license types to track
+# Exact strings from the Socrata API (field: license_type)
+
+license_types:
+  - name: "Electrical Contractor"
+    subtype: "EC"
+    priority: 1
+    category: "electrical"
+
+  - name: "Master Electrician"
+    subtype: null
+    priority: 2
+    category: "electrical"
+
+  - name: "Journeyman Electrician"
+    subtype: null
+    priority: 3
+    category: "electrical"
+
+  - name: "A/C Contractor"
+    subtype: null
+    priority: 2
+    category: "hvac"
+
+  - name: "A/C Technician"
+    subtype: null
+    priority: 3
+    category: "hvac"
+
+  - name: "Water Well Driller/Pump Installer"
+    subtype: null
+    priority: 2
+    category: "water"
+
+  - name: "Appliance Installation Contractor"
+    subtype: null
+    priority: 2
+    category: "appliance"
