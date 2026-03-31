@@ -1,11 +1,13 @@
 """Tests for the differ module."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from src.differ import (
+    bucket_by_week,
     diff_snapshots,
     find_new_licenses,
     find_reinstated_licenses,
@@ -211,3 +213,89 @@ class TestHistoricalIO:
         save_historical(existing | {"C", "D"}, path)
         loaded = load_historical(path)
         assert loaded == {"A", "B", "C", "D"}
+
+
+class TestBucketByWeek:
+    def test_records_land_in_correct_buckets(self):
+        now = datetime.now(timezone.utc)
+        records = [
+            {"license_number": "A", "_created_at": (now - timedelta(days=2)).isoformat()},
+            {"license_number": "B", "_created_at": (now - timedelta(days=10)).isoformat()},
+            {"license_number": "C", "_created_at": (now - timedelta(days=20)).isoformat()},
+        ]
+        buckets = bucket_by_week(records, weeks=4)
+        assert len(buckets) == 4
+        # Most recent bucket (week 4) should have record A
+        assert any(r["license_number"] == "A" for r in buckets[3][1])
+        # Second-most-recent (week 3) should have record B
+        assert any(r["license_number"] == "B" for r in buckets[2][1])
+
+    def test_strips_created_at(self):
+        now = datetime.now(timezone.utc)
+        records = [
+            {"license_number": "X", "_created_at": (now - timedelta(days=1)).isoformat()},
+        ]
+        buckets = bucket_by_week(records, weeks=4)
+        for _, bucket in buckets:
+            for record in bucket:
+                assert "_created_at" not in record
+
+    def test_empty_input(self):
+        buckets = bucket_by_week([], weeks=4)
+        assert len(buckets) == 4
+        assert all(len(b) == 0 for _, b in buckets)
+
+    def test_missing_created_at_goes_to_last_bucket(self):
+        records = [{"license_number": "Z"}]
+        buckets = bucket_by_week(records, weeks=4)
+        assert len(buckets[3][1]) == 1
+        assert buckets[3][1][0]["license_number"] == "Z"
+
+    def test_returns_week_start_dates(self):
+        buckets = bucket_by_week([], weeks=4)
+        # Week starts should be in chronological order
+        dates = [d for d, _ in buckets]
+        assert dates == sorted(dates)
+
+
+class TestDiffSnapshotsWithRecentRecords:
+    def test_first_run_returns_recent_records(self, sample_records, tmp_path):
+        snapshot_path = tmp_path / "previous_snapshot.json"
+        recent = [{"license_number": "NEW1"}, {"license_number": "NEW2"}]
+
+        new_records, removed, is_first_run = diff_snapshots(
+            sample_records, snapshot_path, recent_records=recent
+        )
+
+        assert is_first_run is True
+        assert len(new_records) == 2
+        assert {r["license_number"] for r in new_records} == {"NEW1", "NEW2"}
+        # Full snapshot should still be saved
+        assert snapshot_path.exists()
+        with open(snapshot_path) as f:
+            saved = json.load(f)
+        assert len(saved) == len(sample_records)
+
+    def test_first_run_without_recent_returns_empty(self, sample_records, tmp_path):
+        snapshot_path = tmp_path / "previous_snapshot.json"
+
+        new_records, removed, is_first_run = diff_snapshots(
+            sample_records, snapshot_path, recent_records=None
+        )
+
+        assert is_first_run is True
+        assert new_records == []
+
+    def test_recent_records_ignored_on_subsequent_run(self, sample_records, tmp_path):
+        snapshot_path = tmp_path / "previous_snapshot.json"
+        # Create a baseline first
+        save_snapshot({r["license_number"] for r in sample_records[:8]}, snapshot_path)
+
+        recent = [{"license_number": "IGNORED"}]
+        new_records, removed, is_first_run = diff_snapshots(
+            sample_records, snapshot_path, recent_records=recent
+        )
+
+        # recent_records should be ignored on non-first run
+        assert is_first_run is False
+        assert not any(r["license_number"] == "IGNORED" for r in new_records)

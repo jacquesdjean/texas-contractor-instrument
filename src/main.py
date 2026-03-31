@@ -9,10 +9,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from src.differ import diff_snapshots
+from src.differ import bucket_by_week, diff_snapshots, load_snapshot
 from src.notifications import notify
 from src.scorer import score_and_sort
-from src.scraper import fetch_licenses
+from src.scraper import fetch_licenses, fetch_recent_licenses
 from src.sheets_output import push_to_sheets
 
 load_dotenv()
@@ -64,15 +64,26 @@ def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
 
     logger.info("Fetched %d TDLR records", len(current_records))
 
-    new_records, removed_numbers, is_first_run = diff_snapshots(current_records)
+    # On first run, fetch recently-created records to seed the sheet
+    recent_records = None
+    if load_snapshot() is None:
+        logger.info("First run detected — fetching 4 weeks of historical TDLR data")
+        try:
+            recent_records = fetch_recent_licenses(weeks=4)
+            logger.info("Retrieved %d recently-created TDLR records", len(recent_records))
+        except Exception:
+            logger.warning("Failed to fetch recent TDLR data — sheet will start empty")
 
-    if is_first_run:
-        logger.info("TDLR first run complete — baseline snapshot saved")
-        return [], len(current_records), 0, True
+    new_records, removed_numbers, is_first_run = diff_snapshots(
+        current_records, recent_records=recent_records
+    )
 
     if not new_records:
-        logger.info("No new TDLR licenses detected this week")
-        return [], len(current_records), len(removed_numbers), False
+        if is_first_run:
+            logger.info("TDLR first run complete — baseline snapshot saved")
+        else:
+            logger.info("No new TDLR licenses detected this week")
+        return [], len(current_records), len(removed_numbers), is_first_run
 
     scored = score_and_sort(new_records)
     logger.info(
@@ -81,14 +92,14 @@ def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
         scored[0].get("business_name"),
         scored[0]["_score"],
     )
-    return scored, len(current_records), len(removed_numbers), False
+    return scored, len(current_records), len(removed_numbers), is_first_run
 
 
-def run_tsbpe_pipeline() -> tuple[list[dict], int]:
-    """Run the TSBPE plumbing license pipeline. Returns (scored_records, total_fetched)."""
+def run_tsbpe_pipeline() -> tuple[list[dict], int, bool]:
+    """Run the TSBPE plumbing license pipeline. Returns (scored_records, total_fetched, is_first_run)."""
     if os.environ.get("ENABLE_TSBPE", "").lower() not in ("1", "true", "yes"):
         logger.info("TSBPE scraper disabled (set ENABLE_TSBPE=1 to enable)")
-        return [], 0
+        return [], 0, False
 
     try:
         from src.tsbpe_scraper import fetch_plumbing_licenses
@@ -96,40 +107,63 @@ def run_tsbpe_pipeline() -> tuple[list[dict], int]:
         plumbing_records = fetch_plumbing_licenses()
     except Exception:
         logger.exception("Failed to fetch TSBPE data — continuing with TDLR only")
-        return [], 0
+        return [], 0, False
 
     logger.info("Fetched %d TSBPE plumbing records", len(plumbing_records))
 
+    # On first run, fetch recently-created records to seed the sheet
+    recent_records = None
+    if load_snapshot(TSBPE_SNAPSHOT_PATH) is None:
+        logger.info("TSBPE first run detected — fetching 4 weeks of historical data")
+        try:
+            from src.tsbpe_scraper import fetch_recent_plumbing_licenses
+
+            recent_records = fetch_recent_plumbing_licenses(weeks=4)
+            logger.info("Retrieved %d recently-created TSBPE records", len(recent_records))
+        except Exception:
+            logger.warning("Failed to fetch recent TSBPE data — continuing without backfill")
+
     new_records, removed_numbers, is_first_run = diff_snapshots(
-        plumbing_records, TSBPE_SNAPSHOT_PATH
+        plumbing_records, TSBPE_SNAPSHOT_PATH, recent_records=recent_records
     )
 
-    if is_first_run:
-        logger.info("TSBPE first run — baseline snapshot saved")
-        return [], len(plumbing_records)
-
     if not new_records:
-        logger.info("No new TSBPE licenses detected this week")
-        return [], len(plumbing_records)
+        if is_first_run:
+            logger.info("TSBPE first run — baseline snapshot saved")
+        else:
+            logger.info("No new TSBPE licenses detected this week")
+        return [], len(plumbing_records), is_first_run
 
     scored = score_and_sort(new_records)
-    return scored, len(plumbing_records)
+    return scored, len(plumbing_records), is_first_run
 
 
 def main():
     logger.info("Starting TDLR License Monitor v2")
 
     # Run TDLR pipeline
-    tdlr_scored, tdlr_total, tdlr_removed, is_first_run = run_tdlr_pipeline()
+    tdlr_scored, tdlr_total, tdlr_removed, tdlr_first_run = run_tdlr_pipeline()
 
     # Run TSBPE pipeline
-    tsbpe_scored, tsbpe_total = run_tsbpe_pipeline()
+    tsbpe_scored, tsbpe_total, tsbpe_first_run = run_tsbpe_pipeline()
+
+    is_first_run = tdlr_first_run or tsbpe_first_run
 
     # Combine all scored records
     all_scored = tdlr_scored + tsbpe_scored
     all_scored.sort(key=lambda r: r.get("_score", 0), reverse=True)
 
-    if all_scored:
+    if all_scored and is_first_run:
+        # First-run backfill: push records in weekly buckets so the sheet
+        # mirrors the format of several normal weekly runs.
+        weekly_buckets = bucket_by_week(all_scored, weeks=4)
+        for week_start, bucket in weekly_buckets:
+            if bucket:
+                bucket.sort(key=lambda r: r.get("_score", 0), reverse=True)
+                push_to_sheets(bucket, week_date=week_start)
+        notification_results = notify(all_scored)
+        logger.info("Notifications: %s", notification_results)
+    elif all_scored:
         push_to_sheets(all_scored)
         notification_results = notify(all_scored)
         logger.info("Notifications: %s", notification_results)
