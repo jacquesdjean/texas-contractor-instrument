@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://github.com/jacquesdjean/texas-contractor-instrument#readme
+    about: Check the README for setup guides and configuration reference
+  - name: Security Vulnerabilities
+    url: https://github.com/jacquesdjean/texas-contractor-instrument/security/advisories/new
+    about: Report security vulnerabilities privately via GitHub Security Advisories

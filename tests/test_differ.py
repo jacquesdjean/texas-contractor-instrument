@@ -6,14 +6,14 @@ from pathlib import Path
 import pytest
 
 from src.differ import (
-    find_new_licenses,
-    find_removed_licenses,
-    find_reinstated_licenses,
     diff_snapshots,
-    load_snapshot,
-    save_snapshot,
+    find_new_licenses,
+    find_reinstated_licenses,
+    find_removed_licenses,
     load_historical,
+    load_snapshot,
     save_historical,
+    save_snapshot,
 )
 
 

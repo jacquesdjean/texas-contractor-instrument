@@ -1,11 +1,10 @@
 """Send notifications for high-priority new licenses via email and/or Slack."""
 
-import json
 import logging
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import requests as http_requests
 
@@ -58,24 +57,34 @@ def send_slack_notification(records: list[dict]) -> bool:
         phone = r.get("business_telephone") or r.get("owner_telephone") or "N/A"
         if phone != "N/A":
             phone = format_phone(phone)
-        blocks.append({
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*{r.get('license_type')}*\nScore: {r.get('_score', 0)}"},
-                {"type": "mrkdwn", "text": f"*{r.get('business_name', 'Unknown')}*\n{r.get('business_county', '')}"},
-                {"type": "mrkdwn", "text": f"*Owner:* {r.get('owner_name', 'N/A')}"},
-                {"type": "mrkdwn", "text": f"*Phone:* {phone}"},
-            ],
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*{r.get('license_type')}*\nScore: {r.get('_score', 0)}",
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*{r.get('business_name', 'Unknown')}*\n{r.get('business_county', '')}",
+                    },
+                    {"type": "mrkdwn", "text": f"*Owner:* {r.get('owner_name', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Phone:* {phone}"},
+                ],
+            }
+        )
 
     if len(high_priority) > 10:
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"_...and {len(high_priority) - 10} more. Check Google Sheets for the full list._",
-            },
-        })
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"_...and {len(high_priority) - 10} more. Check Google Sheets for the full list._",
+                },
+            }
+        )
 
     payload = {"blocks": blocks}
 
@@ -125,7 +134,11 @@ def send_email_notification(records: list[dict]) -> bool:
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.send_message(msg)
-        logger.info("Email notification sent to %s for %d high-priority licenses", email_to, len(high_priority))
+        logger.info(
+            "Email notification sent to %s for %d high-priority licenses",
+            email_to,
+            len(high_priority),
+        )
         return True
     except Exception as e:
         logger.error("Failed to send email notification: %s", e)
@@ -137,6 +150,8 @@ def notify(scored_records: list[dict]) -> dict:
     results = {
         "slack_sent": send_slack_notification(scored_records),
         "email_sent": send_email_notification(scored_records),
-        "high_priority_count": len([r for r in scored_records if r.get("_score", 0) >= HIGH_PRIORITY_THRESHOLD]),
+        "high_priority_count": len(
+            [r for r in scored_records if r.get("_score", 0) >= HIGH_PRIORITY_THRESHOLD]
+        ),
     }
     return results
