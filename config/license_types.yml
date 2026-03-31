@@ -36,3 +36,37 @@ license_types:
     subtype: null
     priority: 2
     category: "appliance"
+
+# TSBPE plumbing license types (separate data source)
+plumbing_license_types:
+  - name: "Master Plumber"
+    priority: 1
+    category: "plumbing"
+
+  - name: "Journeyman Plumber"
+    priority: 2
+    category: "plumbing"
+
+  - name: "Tradesman Plumber-Limited"
+    priority: 3
+    category: "plumbing"
+
+  - name: "Residential Utilities Installer"
+    priority: 2
+    category: "plumbing"
+
+  - name: "Plumber's Apprentice"
+    priority: 4
+    category: "plumbing"
+
+  - name: "Drain Cleaner"
+    priority: 3
+    category: "plumbing"
+
+  - name: "Drain Cleaner-Restricted"
+    priority: 4
+    category: "plumbing"
+
+  - name: "Water Supply Protection Specialist"
+    priority: 2
+    category: "plumbing"

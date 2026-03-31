@@ -8,6 +8,14 @@ license_type_scores:
   "Master Electrician": 60
   "Journeyman Electrician": 30
   "A/C Technician": 25
+  "Master Plumber": 85
+  "Journeyman Plumber": 40
+  "Tradesman Plumber-Limited": 35
+  "Residential Utilities Installer": 50
+  "Plumber's Apprentice": 15
+  "Drain Cleaner": 20
+  "Drain Cleaner-Restricted": 15
+  "Water Supply Protection Specialist": 45
 
 # Bonus points added to base score
 bonuses:
