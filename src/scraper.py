@@ -101,9 +101,7 @@ def fetch_recent_licenses(weeks: int = 4, max_retries: int = 3) -> list[dict]:
     counties, license_types = load_config()
     params = build_query(counties, license_types)
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime("%Y-%m-%dT%H:%M:%S")
     params["$where"] += f" AND :created_at >= '{cutoff}'"
     params["$select"] += ", :created_at"
     params["$order"] = ":created_at"
