@@ -117,9 +117,7 @@ def _normalize_tsbpe(records: list[dict], preserve_created_at: bool = False) -> 
             "owner_name": r.get("owner_name", ""),
             "owner_telephone": r.get("owner_telephone", ""),
             "mailing_address_county": r.get("mailing_address_county", ""),
-            "license_expiration_date_mmddccyy": r.get(
-                "license_expiration_date_mmddccyy", ""
-            ),
+            "license_expiration_date_mmddccyy": r.get("license_expiration_date_mmddccyy", ""),
             "business_mailing": r.get("business_mailing"),
             "_source": "TSBPE",
         }
@@ -152,9 +150,7 @@ def fetch_recent_plumbing_licenses(weeks: int = 4, max_retries: int = 3) -> list
     counties = load_territory()
     params = build_tsbpe_query(counties)
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime("%Y-%m-%dT%H:%M:%S")
     params["$where"] += f" AND :created_at >= '{cutoff}'"
     params["$order"] = ":created_at"
 

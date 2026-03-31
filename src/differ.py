@@ -71,9 +71,7 @@ def find_reinstated_licenses(new_records: list[dict], historical_numbers: set[st
     return reinstated
 
 
-def bucket_by_week(
-    records: list[dict], weeks: int = 4
-) -> list[tuple[datetime, list[dict]]]:
+def bucket_by_week(records: list[dict], weeks: int = 4) -> list[tuple[datetime, list[dict]]]:
     """Group records into weekly buckets based on their ``_created_at`` timestamp.
 
     Returns a list of ``(week_start_date, records)`` tuples ordered oldest-first.
@@ -84,9 +82,7 @@ def bucket_by_week(
     now = datetime.now(timezone.utc)
     # Build week boundaries: [now-4w, now-3w, now-2w, now-1w, now]
     boundaries = [now - timedelta(weeks=weeks - i) for i in range(weeks + 1)]
-    buckets: list[tuple[datetime, list[dict]]] = [
-        (boundaries[i], []) for i in range(weeks)
-    ]
+    buckets: list[tuple[datetime, list[dict]]] = [(boundaries[i], []) for i in range(weeks)]
 
     for record in records:
         raw_ts = record.pop("_created_at", "")
