@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.scorer import score_record, score_and_sort, format_phone, load_scoring_config
+from src.scorer import format_phone, load_scoring_config, score_and_sort, score_record
 
 
 @pytest.fixture

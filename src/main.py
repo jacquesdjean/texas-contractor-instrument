@@ -9,11 +9,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from src.scraper import fetch_licenses
 from src.differ import diff_snapshots
-from src.scorer import score_and_sort
-from src.sheets_output import push_to_sheets
 from src.notifications import notify
+from src.scorer import score_and_sort
+from src.scraper import fetch_licenses
+from src.sheets_output import push_to_sheets
 
 load_dotenv()
 
@@ -75,19 +75,24 @@ def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
         return [], len(current_records), len(removed_numbers), False
 
     scored = score_and_sort(new_records)
-    logger.info("Top new TDLR license: %s — %s (score %d)",
-                scored[0].get("license_type"), scored[0].get("business_name"), scored[0]["_score"])
+    logger.info(
+        "Top new TDLR license: %s — %s (score %d)",
+        scored[0].get("license_type"),
+        scored[0].get("business_name"),
+        scored[0]["_score"],
+    )
     return scored, len(current_records), len(removed_numbers), False
 
 
 def run_tsbpe_pipeline() -> tuple[list[dict], int]:
     """Run the TSBPE plumbing license pipeline. Returns (scored_records, total_fetched)."""
-    if not os.environ.get("ENABLE_TSBPE", "").lower() in ("1", "true", "yes"):
+    if os.environ.get("ENABLE_TSBPE", "").lower() not in ("1", "true", "yes"):
         logger.info("TSBPE scraper disabled (set ENABLE_TSBPE=1 to enable)")
         return [], 0
 
     try:
         from src.tsbpe_scraper import fetch_plumbing_licenses
+
         plumbing_records = fetch_plumbing_licenses()
     except Exception:
         logger.exception("Failed to fetch TSBPE data — continuing with TDLR only")
@@ -143,7 +148,8 @@ def main():
 
     logger.info(
         "Run complete — %d TDLR + %d TSBPE new licenses processed",
-        len(tdlr_scored), len(tsbpe_scored),
+        len(tdlr_scored),
+        len(tsbpe_scored),
     )
 
 

@@ -60,8 +60,10 @@ def score_and_sort(records: list[dict]) -> list[dict]:
         scored.append(scored_record)
 
     scored.sort(key=lambda r: r["_score"], reverse=True)
-    logger.info("Scored %d records (max=%d, min=%d)",
-                len(scored),
-                scored[0]["_score"] if scored else 0,
-                scored[-1]["_score"] if scored else 0)
+    logger.info(
+        "Scored %d records (max=%d, min=%d)",
+        len(scored),
+        scored[0]["_score"] if scored else 0,
+        scored[-1]["_score"] if scored else 0,
+    )
     return scored

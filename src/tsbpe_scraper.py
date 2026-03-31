@@ -91,7 +91,9 @@ def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
 
     for attempt in range(max_retries + 1):
         try:
-            logger.info("Fetching TSBPE plumbing data (attempt %d/%d)", attempt + 1, max_retries + 1)
+            logger.info(
+                "Fetching TSBPE plumbing data (attempt %d/%d)", attempt + 1, max_retries + 1
+            )
             response = requests.get(TSBPE_BASE_URL, params=params, headers=headers, timeout=60)
             response.raise_for_status()
             records = response.json()
@@ -99,22 +101,26 @@ def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
             # Normalize records to match TDLR shape for compatibility
             normalized = []
             for r in records:
-                normalized.append({
-                    "license_type": r.get("license_type", ""),
-                    "license_number": f"TSBPE-{r.get('license_number', '')}",
-                    "license_subtype": "",
-                    "business_name": r.get("business_name", ""),
-                    "business_county": r.get("business_county", ""),
-                    "business_address_line1": r.get("business_address_line1", ""),
-                    "business_city_state_zip": r.get("business_city_state_zip", ""),
-                    "business_telephone": r.get("business_telephone", ""),
-                    "owner_name": r.get("owner_name", ""),
-                    "owner_telephone": r.get("owner_telephone", ""),
-                    "mailing_address_county": r.get("mailing_address_county", ""),
-                    "license_expiration_date_mmddccyy": r.get("license_expiration_date_mmddccyy", ""),
-                    "business_mailing": r.get("business_mailing"),
-                    "_source": "TSBPE",
-                })
+                normalized.append(
+                    {
+                        "license_type": r.get("license_type", ""),
+                        "license_number": f"TSBPE-{r.get('license_number', '')}",
+                        "license_subtype": "",
+                        "business_name": r.get("business_name", ""),
+                        "business_county": r.get("business_county", ""),
+                        "business_address_line1": r.get("business_address_line1", ""),
+                        "business_city_state_zip": r.get("business_city_state_zip", ""),
+                        "business_telephone": r.get("business_telephone", ""),
+                        "owner_name": r.get("owner_name", ""),
+                        "owner_telephone": r.get("owner_telephone", ""),
+                        "mailing_address_county": r.get("mailing_address_county", ""),
+                        "license_expiration_date_mmddccyy": r.get(
+                            "license_expiration_date_mmddccyy", ""
+                        ),
+                        "business_mailing": r.get("business_mailing"),
+                        "_source": "TSBPE",
+                    }
+                )
 
             logger.info("Fetched %d plumbing records from TSBPE", len(normalized))
             return normalized

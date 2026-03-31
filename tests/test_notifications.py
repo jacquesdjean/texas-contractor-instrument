@@ -1,15 +1,14 @@
 """Tests for the notifications module."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.notifications import (
     format_license_summary,
-    send_slack_notification,
-    send_email_notification,
     notify,
-    HIGH_PRIORITY_THRESHOLD,
+    send_email_notification,
+    send_slack_notification,
 )
 
 
@@ -91,24 +90,30 @@ class TestEmailNotification:
     def test_skips_when_not_configured(self, high_priority_records):
         assert send_email_notification(high_priority_records) is False
 
-    @patch.dict("os.environ", {
-        "SMTP_HOST": "smtp.test.com",
-        "SMTP_PORT": "587",
-        "SMTP_USER": "user@test.com",
-        "SMTP_PASS": "pass",
-        "NOTIFICATION_EMAIL": "to@test.com",
-    })
+    @patch.dict(
+        "os.environ",
+        {
+            "SMTP_HOST": "smtp.test.com",
+            "SMTP_PORT": "587",
+            "SMTP_USER": "user@test.com",
+            "SMTP_PASS": "pass",
+            "NOTIFICATION_EMAIL": "to@test.com",
+        },
+    )
     def test_skips_when_no_high_priority(self, low_priority_records):
         assert send_email_notification(low_priority_records) is False
 
     @patch("src.notifications.smtplib.SMTP")
-    @patch.dict("os.environ", {
-        "SMTP_HOST": "smtp.test.com",
-        "SMTP_PORT": "587",
-        "SMTP_USER": "user@test.com",
-        "SMTP_PASS": "pass",
-        "NOTIFICATION_EMAIL": "to@test.com",
-    })
+    @patch.dict(
+        "os.environ",
+        {
+            "SMTP_HOST": "smtp.test.com",
+            "SMTP_PORT": "587",
+            "SMTP_USER": "user@test.com",
+            "SMTP_PASS": "pass",
+            "NOTIFICATION_EMAIL": "to@test.com",
+        },
+    )
     def test_sends_email_for_high_priority(self, mock_smtp_class, high_priority_records):
         mock_server = MagicMock()
         mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_server)

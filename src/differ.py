@@ -47,10 +47,7 @@ def find_new_licenses(
     current_records: list[dict], previous_license_numbers: set[str]
 ) -> list[dict]:
     """Return records whose license_number was NOT in the previous snapshot."""
-    return [
-        r for r in current_records
-        if r.get("license_number") not in previous_license_numbers
-    ]
+    return [r for r in current_records if r.get("license_number") not in previous_license_numbers]
 
 
 def find_removed_licenses(
@@ -64,15 +61,10 @@ def find_removed_licenses(
     return removed
 
 
-def find_reinstated_licenses(
-    new_records: list[dict], historical_numbers: set[str]
-) -> list[dict]:
+def find_reinstated_licenses(new_records: list[dict], historical_numbers: set[str]) -> list[dict]:
     """Identify licenses that are 'new' this week but have been seen in a prior run.
     These are likely reinstated after expiration/revocation."""
-    reinstated = [
-        r for r in new_records
-        if r.get("license_number") in historical_numbers
-    ]
+    reinstated = [r for r in new_records if r.get("license_number") in historical_numbers]
     if reinstated:
         logger.info("Detected %d reinstated licenses", len(reinstated))
     return reinstated
@@ -116,8 +108,12 @@ def diff_snapshots(current_records: list[dict], snapshot_path: Path = SNAPSHOT_P
     for record in new_records:
         record["_reinstated"] = record.get("license_number") in reinstated_numbers
 
-    logger.info("Found %d new licenses (%d reinstated), %d removed",
-                len(new_records), len(reinstated), len(removed_numbers))
+    logger.info(
+        "Found %d new licenses (%d reinstated), %d removed",
+        len(new_records),
+        len(reinstated),
+        len(removed_numbers),
+    )
 
     save_snapshot(current_numbers, snapshot_path)
     # Update historical with all ever-seen license numbers

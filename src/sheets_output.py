@@ -19,13 +19,28 @@ NEW_LICENSES_TAB = "New Licenses"
 WEEKLY_SUMMARY_TAB = "Weekly Summary"
 
 NEW_LICENSES_HEADERS = [
-    "Score", "License Type", "Business Name", "Owner", "Phone",
-    "City/Zip", "County", "License #", "Expiration", "Address", "Date Found",
+    "Score",
+    "License Type",
+    "Business Name",
+    "Owner",
+    "Phone",
+    "City/Zip",
+    "County",
+    "License #",
+    "Expiration",
+    "Address",
+    "Date Found",
 ]
 
 WEEKLY_SUMMARY_HEADERS = [
-    "Week Of", "New Electrical Contractors", "New Master Electricians",
-    "New Journeyman", "New HVAC", "New Water Well", "Total New", "Territory",
+    "Week Of",
+    "New Electrical Contractors",
+    "New Master Electricians",
+    "New Journeyman",
+    "New HVAC",
+    "New Water Well",
+    "Total New",
+    "Territory",
 ]
 
 
@@ -42,10 +57,15 @@ def get_sheets_service():
 
 def ensure_headers(service, sheet_id: str, tab_name: str, headers: list[str]):
     """Add header row to a tab if it's empty."""
-    result = service.spreadsheets().values().get(
-        spreadsheetId=sheet_id,
-        range=f"'{tab_name}'!A1:Z1",
-    ).execute()
+    result = (
+        service.spreadsheets()
+        .values()
+        .get(
+            spreadsheetId=sheet_id,
+            range=f"'{tab_name}'!A1:Z1",
+        )
+        .execute()
+    )
 
     if not result.get("values"):
         service.spreadsheets().values().update(
