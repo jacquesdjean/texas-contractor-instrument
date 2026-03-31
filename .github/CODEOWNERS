@@ -1,0 +1,17 @@
+# CODEOWNERS — Automatically request reviews from code owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @jacquesdjean
+
+# Source code
+/src/ @jacquesdjean
+
+# Configuration
+/config/ @jacquesdjean
+
+# CI/CD workflows
+/.github/ @jacquesdjean
+
+# Documentation
+/*.md @jacquesdjean
