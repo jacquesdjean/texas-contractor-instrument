@@ -128,8 +128,15 @@ def build_summary_row(records: list[dict], date_str: str, territory: str) -> lis
     ]
 
 
-def push_to_sheets(scored_records: list[dict]) -> bool:
-    """Push scored records to Google Sheets. Returns True on success."""
+def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None) -> bool:
+    """Push scored records to Google Sheets. Returns True on success.
+
+    Args:
+        scored_records: Scored license records to push.
+        week_date: Optional override date for the week separator and
+            ``Date Found`` column.  Used during first-run backfill so that
+            historical batches carry the correct week date.
+    """
     service = get_sheets_service()
     if service is None:
         logger.warning("Google Sheets credentials not configured — skipping Sheets output")
@@ -140,8 +147,9 @@ def push_to_sheets(scored_records: list[dict]) -> bool:
         logger.warning("GOOGLE_SHEET_ID not set — skipping Sheets output")
         return False
 
-    date_found = datetime.now().strftime("%Y-%m-%d")
-    week_of = datetime.now().strftime("%m/%d/%Y")
+    ref_date = week_date or datetime.now()
+    date_found = ref_date.strftime("%Y-%m-%d")
+    week_of = ref_date.strftime("%m/%d/%Y")
 
     try:
         ensure_headers(service, sheet_id, NEW_LICENSES_TAB, NEW_LICENSES_HEADERS)

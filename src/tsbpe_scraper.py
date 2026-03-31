@@ -10,6 +10,7 @@ can process TSBPE records identically to TDLR records.
 import logging
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -75,15 +76,8 @@ def build_tsbpe_query(counties: list[str]) -> dict:
     }
 
 
-def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
-    """Fetch plumbing licenses from TSBPE via Socrata API.
-
-    Returns records in the same shape as TDLR records for compatibility
-    with the differ and scorer modules.
-    """
-    counties = load_territory()
-    params = build_tsbpe_query(counties)
-
+def _fetch_tsbpe_with_retry(params: dict, max_retries: int = 3, label: str = "TSBPE") -> list[dict]:
+    """Shared fetch logic with retry/backoff for TSBPE Socrata API calls."""
     headers = {}
     app_token = os.environ.get("SOCRATA_APP_TOKEN")
     if app_token:
@@ -92,44 +86,79 @@ def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
     for attempt in range(max_retries + 1):
         try:
             logger.info(
-                "Fetching TSBPE plumbing data (attempt %d/%d)", attempt + 1, max_retries + 1
+                "Fetching %s plumbing data (attempt %d/%d)", label, attempt + 1, max_retries + 1
             )
             response = requests.get(TSBPE_BASE_URL, params=params, headers=headers, timeout=60)
             response.raise_for_status()
-            records = response.json()
-
-            # Normalize records to match TDLR shape for compatibility
-            normalized = []
-            for r in records:
-                normalized.append(
-                    {
-                        "license_type": r.get("license_type", ""),
-                        "license_number": f"TSBPE-{r.get('license_number', '')}",
-                        "license_subtype": "",
-                        "business_name": r.get("business_name", ""),
-                        "business_county": r.get("business_county", ""),
-                        "business_address_line1": r.get("business_address_line1", ""),
-                        "business_city_state_zip": r.get("business_city_state_zip", ""),
-                        "business_telephone": r.get("business_telephone", ""),
-                        "owner_name": r.get("owner_name", ""),
-                        "owner_telephone": r.get("owner_telephone", ""),
-                        "mailing_address_county": r.get("mailing_address_county", ""),
-                        "license_expiration_date_mmddccyy": r.get(
-                            "license_expiration_date_mmddccyy", ""
-                        ),
-                        "business_mailing": r.get("business_mailing"),
-                        "_source": "TSBPE",
-                    }
-                )
-
-            logger.info("Fetched %d plumbing records from TSBPE", len(normalized))
-            return normalized
-
+            return response.json()
         except requests.RequestException as e:
             if attempt < max_retries:
                 wait = 2 ** (attempt + 1)
-                logger.warning("TSBPE API request failed: %s. Retrying in %ds...", e, wait)
+                logger.warning("%s API request failed: %s. Retrying in %ds...", label, e, wait)
                 time.sleep(wait)
             else:
-                logger.error("TSBPE API request failed after %d retries: %s", max_retries, e)
+                logger.error("%s API request failed after %d retries: %s", label, max_retries, e)
                 raise
+
+
+def _normalize_tsbpe(records: list[dict], preserve_created_at: bool = False) -> list[dict]:
+    """Normalize TSBPE records to match TDLR shape."""
+    normalized = []
+    for r in records:
+        entry = {
+            "license_type": r.get("license_type", ""),
+            "license_number": f"TSBPE-{r.get('license_number', '')}",
+            "license_subtype": "",
+            "business_name": r.get("business_name", ""),
+            "business_county": r.get("business_county", ""),
+            "business_address_line1": r.get("business_address_line1", ""),
+            "business_city_state_zip": r.get("business_city_state_zip", ""),
+            "business_telephone": r.get("business_telephone", ""),
+            "owner_name": r.get("owner_name", ""),
+            "owner_telephone": r.get("owner_telephone", ""),
+            "mailing_address_county": r.get("mailing_address_county", ""),
+            "license_expiration_date_mmddccyy": r.get(
+                "license_expiration_date_mmddccyy", ""
+            ),
+            "business_mailing": r.get("business_mailing"),
+            "_source": "TSBPE",
+        }
+        if preserve_created_at:
+            entry["_created_at"] = r.get(":created_at", "")
+        normalized.append(entry)
+    return normalized
+
+
+def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
+    """Fetch plumbing licenses from TSBPE via Socrata API.
+
+    Returns records in the same shape as TDLR records for compatibility
+    with the differ and scorer modules.
+    """
+    counties = load_territory()
+    params = build_tsbpe_query(counties)
+    records = _fetch_tsbpe_with_retry(params, max_retries, label="TSBPE")
+    normalized = _normalize_tsbpe(records)
+    logger.info("Fetched %d plumbing records from TSBPE", len(normalized))
+    return normalized
+
+
+def fetch_recent_plumbing_licenses(weeks: int = 4, max_retries: int = 3) -> list[dict]:
+    """Fetch TSBPE plumbing licenses created in the last *weeks* weeks.
+
+    Uses the Socrata ``:created_at`` system field.  Each returned record
+    carries a temporary ``_created_at`` key for weekly bucketing.
+    """
+    counties = load_territory()
+    params = build_tsbpe_query(counties)
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    params["$where"] += f" AND :created_at >= '{cutoff}'"
+    params["$order"] = ":created_at"
+
+    records = _fetch_tsbpe_with_retry(params, max_retries, label="TSBPE-recent")
+    normalized = _normalize_tsbpe(records, preserve_created_at=True)
+    logger.info("Fetched %d recent plumbing records from TSBPE", len(normalized))
+    return normalized

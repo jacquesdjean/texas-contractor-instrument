@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,54 @@ def find_reinstated_licenses(new_records: list[dict], historical_numbers: set[st
     return reinstated
 
 
-def diff_snapshots(current_records: list[dict], snapshot_path: Path = SNAPSHOT_PATH):
+def bucket_by_week(
+    records: list[dict], weeks: int = 4
+) -> list[tuple[datetime, list[dict]]]:
+    """Group records into weekly buckets based on their ``_created_at`` timestamp.
+
+    Returns a list of ``(week_start_date, records)`` tuples ordered oldest-first.
+    The ``_created_at`` key is stripped from each record before returning.
+    Records whose ``_created_at`` cannot be parsed are placed in the most recent
+    bucket.
+    """
+    now = datetime.now(timezone.utc)
+    # Build week boundaries: [now-4w, now-3w, now-2w, now-1w, now]
+    boundaries = [now - timedelta(weeks=weeks - i) for i in range(weeks + 1)]
+    buckets: list[tuple[datetime, list[dict]]] = [
+        (boundaries[i], []) for i in range(weeks)
+    ]
+
+    for record in records:
+        raw_ts = record.pop("_created_at", "")
+        ts = None
+        if raw_ts:
+            try:
+                # Socrata floating timestamps: 2026-03-15T00:00:00.000
+                ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                pass
+
+        placed = False
+        if ts:
+            for i in range(weeks):
+                if boundaries[i] <= ts < boundaries[i + 1]:
+                    buckets[i][1].append(record)
+                    placed = True
+                    break
+        if not placed:
+            # Fallback: most recent bucket
+            buckets[-1][1].append(record)
+
+    return buckets
+
+
+def diff_snapshots(
+    current_records: list[dict],
+    snapshot_path: Path = SNAPSHOT_PATH,
+    recent_records: list[dict] | None = None,
+):
     """Run the full diff pipeline.
 
     Returns:
@@ -90,13 +138,22 @@ def diff_snapshots(current_records: list[dict], snapshot_path: Path = SNAPSHOT_P
     historical = load_historical(history_path)
 
     if previous_numbers is None:
+        save_snapshot(current_numbers, snapshot_path)
+        save_historical(current_numbers | historical, history_path)
+
+        if recent_records:
+            logger.info(
+                "First run — baseline snapshot saved with %d licenses. "
+                "Seeding with %d recently-created records.",
+                len(current_numbers),
+                len(recent_records),
+            )
+            return recent_records, set(), True
+
         logger.info(
             "First run — baseline snapshot created. "
             "New licenses will be detected starting next week."
         )
-        save_snapshot(current_numbers, snapshot_path)
-        # Initialize historical with current
-        save_historical(current_numbers | historical, history_path)
         return [], set(), True
 
     new_records = find_new_licenses(current_records, previous_numbers)
