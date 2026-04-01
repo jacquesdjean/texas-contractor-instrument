@@ -51,11 +51,6 @@ def get_sheets_service():
         return None
 
     creds_json = json.loads(base64.b64decode(creds_b64))
-    logger.info(
-        "Sheets auth: service account = %s, project = %s",
-        creds_json.get("client_email", "MISSING"),
-        creds_json.get("project_id", "MISSING"),
-    )
     creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
     return build("sheets", "v4", credentials=creds)
 
@@ -185,7 +180,6 @@ def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None
         return False
 
     sheet_id = _normalize_sheet_id(raw_id)
-    logger.info("Sheet ID: %s...%s (len=%d)", sheet_id[:4], sheet_id[-4:], len(sheet_id))
 
     ref_date = week_date or datetime.now()
     date_found = ref_date.strftime("%Y-%m-%d")
