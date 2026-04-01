@@ -10,7 +10,7 @@ can process TSBPE records identically to TDLR records.
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import requests
@@ -150,7 +150,7 @@ def fetch_recent_plumbing_licenses(weeks: int = 4, max_retries: int = 3) -> list
     counties = load_territory()
     params = build_tsbpe_query(counties)
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(weeks=weeks)).strftime("%Y-%m-%dT%H:%M:%S")
+    cutoff = (datetime.now(UTC) - timedelta(weeks=weeks)).strftime("%Y-%m-%dT%H:%M:%S")
     params["$where"] += f" AND :created_at >= '{cutoff}'"
     params["$order"] = ":created_at"
 

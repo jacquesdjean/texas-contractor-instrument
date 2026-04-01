@@ -1,7 +1,7 @@
 """Tests for the differ module."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -217,7 +217,7 @@ class TestHistoricalIO:
 
 class TestBucketByWeek:
     def test_records_land_in_correct_buckets(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         records = [
             {"license_number": "A", "_created_at": (now - timedelta(days=2)).isoformat()},
             {"license_number": "B", "_created_at": (now - timedelta(days=10)).isoformat()},
@@ -231,7 +231,7 @@ class TestBucketByWeek:
         assert any(r["license_number"] == "B" for r in buckets[2][1])
 
     def test_strips_created_at(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         records = [
             {"license_number": "X", "_created_at": (now - timedelta(days=1)).isoformat()},
         ]

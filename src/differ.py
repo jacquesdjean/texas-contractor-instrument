@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ def bucket_by_week(records: list[dict], weeks: int = 4) -> list[tuple[datetime, 
     Records whose ``_created_at`` cannot be parsed are placed in the most recent
     bucket.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     # Build week boundaries: [now-4w, now-3w, now-2w, now-1w, now]
     boundaries = [now - timedelta(weeks=weeks - i) for i in range(weeks + 1)]
     buckets: list[tuple[datetime, list[dict]]] = [(boundaries[i], []) for i in range(weeks)]
@@ -92,7 +92,7 @@ def bucket_by_week(records: list[dict], weeks: int = 4) -> list[tuple[datetime, 
                 # Socrata floating timestamps: 2026-03-15T00:00:00.000
                 ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
                 if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=timezone.utc)
+                    ts = ts.replace(tzinfo=UTC)
             except (ValueError, TypeError):
                 pass
 
