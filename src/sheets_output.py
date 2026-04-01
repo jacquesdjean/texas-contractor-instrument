@@ -141,6 +141,21 @@ def build_summary_row(records: list[dict], date_str: str, territory: str) -> lis
     ]
 
 
+def _normalize_sheet_id(raw: str) -> str:
+    """Extract the spreadsheet ID from a full Google Sheets URL or return as-is.
+
+    Accepts both plain IDs and full URLs like
+    ``https://docs.google.com/spreadsheets/d/<ID>/edit?...``.
+    """
+    if "/" in raw:
+        parts = raw.split("/")
+        try:
+            return parts[parts.index("d") + 1]
+        except (ValueError, IndexError):
+            pass
+    return raw.strip()
+
+
 def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None) -> bool:
     """Push scored records to Google Sheets. Returns True on success.
 
@@ -155,10 +170,12 @@ def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None
         logger.warning("Google Sheets credentials not configured — skipping Sheets output")
         return False
 
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
-    if not sheet_id:
+    raw_id = os.environ.get("GOOGLE_SHEET_ID", "")
+    if not raw_id:
         logger.warning("GOOGLE_SHEET_ID not set — skipping Sheets output")
         return False
+
+    sheet_id = _normalize_sheet_id(raw_id)
 
     ref_date = week_date or datetime.now()
     date_found = ref_date.strftime("%Y-%m-%d")
