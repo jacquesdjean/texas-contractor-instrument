@@ -83,9 +83,9 @@ def extract_recent_by_expiration(records: list[dict], weeks: int = 4) -> list[di
     """Return the records most likely issued in the last *weeks* weeks.
 
     TDLR licenses are issued for a 1-year term, so ``expiration ≈ issue + 1
-    year``.  We find the maximum expiration date in the dataset (representing
-    the most recently-issued license) and select all records expiring within
-    *weeks* weeks of that date.
+    year``.  We use the 95th-percentile expiration date (to ignore outlier
+    multi-year licenses) and select all records expiring within *weeks* weeks
+    of that reference point.
     """
     # Parse all expiration dates and pair with records
     dated = []
@@ -98,16 +98,21 @@ def extract_recent_by_expiration(records: list[dict], weeks: int = 4) -> list[di
         logger.info("No parseable expiration dates found — cannot extract recent records")
         return []
 
-    max_exp = max(d[0] for d in dated)
-    cutoff = max_exp - timedelta(weeks=weeks)
+    # Use the 95th-percentile expiration as the reference point instead of
+    # the absolute max, which can be skewed by multi-year licenses.
+    sorted_dates = sorted(d[0] for d in dated)
+    p95_idx = int(len(sorted_dates) * 0.95)
+    ref_exp = sorted_dates[min(p95_idx, len(sorted_dates) - 1)]
+    cutoff = ref_exp - timedelta(weeks=weeks)
 
     recent = [r for exp, r in dated if exp >= cutoff]
 
     logger.info(
-        "Extracted %d recently-issued records (expiration %s – %s)",
+        "Extracted %d recently-issued records (expiration %s – %s, p95 ref %s)",
         len(recent),
         cutoff.strftime("%m/%d/%Y"),
-        max_exp.strftime("%m/%d/%Y"),
+        sorted_dates[-1].strftime("%m/%d/%Y"),
+        ref_exp.strftime("%m/%d/%Y"),
     )
     return recent
 
