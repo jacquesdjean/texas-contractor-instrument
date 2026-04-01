@@ -9,10 +9,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from src.differ import bucket_by_week, diff_snapshots, load_snapshot
+from src.differ import (
+    bucket_by_week,
+    diff_snapshots,
+    extract_recent_by_expiration,
+    load_snapshot,
+)
 from src.notifications import notify
 from src.scorer import score_and_sort
-from src.scraper import fetch_licenses, fetch_recent_licenses
+from src.scraper import fetch_licenses
 from src.sheets_output import push_to_sheets
 
 load_dotenv()
@@ -64,15 +69,12 @@ def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
 
     logger.info("Fetched %d TDLR records", len(current_records))
 
-    # On first run, fetch recently-created records to seed the sheet
+    # On first run, extract recently-issued licenses from the full dataset
+    # using expiration dates as a proxy (expiration ≈ issue date + 1 year).
     recent_records = None
     if load_snapshot() is None:
-        logger.info("First run detected — fetching 4 weeks of historical TDLR data")
-        try:
-            recent_records = fetch_recent_licenses(weeks=4)
-            logger.info("Retrieved %d recently-created TDLR records", len(recent_records))
-        except Exception:
-            logger.warning("Failed to fetch recent TDLR data — sheet will start empty")
+        logger.info("First run detected — extracting recent TDLR licenses for backfill")
+        recent_records = extract_recent_by_expiration(current_records, weeks=4)
 
     new_records, removed_numbers, is_first_run = diff_snapshots(
         current_records, recent_records=recent_records
@@ -111,17 +113,11 @@ def run_tsbpe_pipeline() -> tuple[list[dict], int, bool]:
 
     logger.info("Fetched %d TSBPE plumbing records", len(plumbing_records))
 
-    # On first run, fetch recently-created records to seed the sheet
+    # On first run, extract recently-issued licenses for backfill
     recent_records = None
     if load_snapshot(TSBPE_SNAPSHOT_PATH) is None:
-        logger.info("TSBPE first run detected — fetching 4 weeks of historical data")
-        try:
-            from src.tsbpe_scraper import fetch_recent_plumbing_licenses
-
-            recent_records = fetch_recent_plumbing_licenses(weeks=4)
-            logger.info("Retrieved %d recently-created TSBPE records", len(recent_records))
-        except Exception:
-            logger.warning("Failed to fetch recent TSBPE data — continuing without backfill")
+        logger.info("TSBPE first run detected — extracting recent licenses for backfill")
+        recent_records = extract_recent_by_expiration(plumbing_records, weeks=4)
 
     new_records, removed_numbers, is_first_run = diff_snapshots(
         plumbing_records, TSBPE_SNAPSHOT_PATH, recent_records=recent_records

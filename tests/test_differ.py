@@ -1,7 +1,7 @@
 """Tests for the differ module."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -9,6 +9,7 @@ import pytest
 from src.differ import (
     bucket_by_week,
     diff_snapshots,
+    extract_recent_by_expiration,
     find_new_licenses,
     find_reinstated_licenses,
     find_removed_licenses,
@@ -215,47 +216,68 @@ class TestHistoricalIO:
         assert loaded == {"A", "B", "C", "D"}
 
 
-class TestBucketByWeek:
-    def test_records_land_in_correct_buckets(self):
-        now = datetime.now(UTC)
+class TestExtractRecentByExpiration:
+    def test_selects_licenses_near_max_expiration(self):
+        # Record A expires 1 week before max, Record B expires 10 weeks before max
         records = [
-            {"license_number": "A", "_created_at": (now - timedelta(days=2)).isoformat()},
-            {"license_number": "B", "_created_at": (now - timedelta(days=10)).isoformat()},
-            {"license_number": "C", "_created_at": (now - timedelta(days=20)).isoformat()},
+            {"license_number": "A", "license_expiration_date_mmddccyy": "01/06/2027"},
+            {"license_number": "B", "license_expiration_date_mmddccyy": "01/13/2027"},
+            {"license_number": "C", "license_expiration_date_mmddccyy": "10/01/2026"},
+        ]
+        # weeks=4: cutoff = max(01/13/2027) - 4 weeks = ~12/16/2026
+        recent = extract_recent_by_expiration(records, weeks=4)
+        assert len(recent) == 2
+        numbers = {r["license_number"] for r in recent}
+        assert numbers == {"A", "B"}
+
+    def test_all_within_window(self):
+        records = [
+            {"license_number": "A", "license_expiration_date_mmddccyy": "01/10/2027"},
+            {"license_number": "B", "license_expiration_date_mmddccyy": "01/13/2027"},
+        ]
+        recent = extract_recent_by_expiration(records, weeks=4)
+        assert len(recent) == 2
+
+    def test_handles_missing_expiration(self):
+        records = [{"license_number": "A"}]
+        recent = extract_recent_by_expiration(records, weeks=4)
+        assert recent == []
+
+    def test_handles_empty_records(self):
+        recent = extract_recent_by_expiration([], weeks=4)
+        assert recent == []
+
+
+class TestBucketByWeek:
+    def test_distributes_records_across_buckets(self):
+        now = datetime.now()
+        exp = (now + timedelta(weeks=51)).strftime("%m/%d/%Y")
+        records = [
+            {"license_number": str(i), "license_expiration_date_mmddccyy": exp} for i in range(8)
         ]
         buckets = bucket_by_week(records, weeks=4)
         assert len(buckets) == 4
-        # Most recent bucket (week 4) should have record A
-        assert any(r["license_number"] == "A" for r in buckets[3][1])
-        # Second-most-recent (week 3) should have record B
-        assert any(r["license_number"] == "B" for r in buckets[2][1])
-
-    def test_strips_created_at(self):
-        now = datetime.now(UTC)
-        records = [
-            {"license_number": "X", "_created_at": (now - timedelta(days=1)).isoformat()},
-        ]
-        buckets = bucket_by_week(records, weeks=4)
+        # 8 records across 4 buckets = 2 each
         for _, bucket in buckets:
-            for record in bucket:
-                assert "_created_at" not in record
+            assert len(bucket) == 2
 
     def test_empty_input(self):
         buckets = bucket_by_week([], weeks=4)
         assert len(buckets) == 4
         assert all(len(b) == 0 for _, b in buckets)
 
-    def test_missing_created_at_goes_to_last_bucket(self):
-        records = [{"license_number": "Z"}]
-        buckets = bucket_by_week(records, weeks=4)
-        assert len(buckets[3][1]) == 1
-        assert buckets[3][1][0]["license_number"] == "Z"
-
-    def test_returns_week_start_dates(self):
+    def test_returns_week_dates_in_order(self):
         buckets = bucket_by_week([], weeks=4)
-        # Week starts should be in chronological order
         dates = [d for d, _ in buckets]
         assert dates == sorted(dates)
+
+    def test_single_record(self):
+        now = datetime.now()
+        exp = (now + timedelta(weeks=51)).strftime("%m/%d/%Y")
+        records = [{"license_number": "A", "license_expiration_date_mmddccyy": exp}]
+        buckets = bucket_by_week(records, weeks=4)
+        total = sum(len(b) for _, b in buckets)
+        assert total == 1
 
 
 class TestDiffSnapshotsWithRecentRecords:

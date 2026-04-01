@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -71,41 +71,69 @@ def find_reinstated_licenses(new_records: list[dict], historical_numbers: set[st
     return reinstated
 
 
-def bucket_by_week(records: list[dict], weeks: int = 4) -> list[tuple[datetime, list[dict]]]:
-    """Group records into weekly buckets based on their ``_created_at`` timestamp.
+def _parse_expiration(raw: str) -> datetime | None:
+    """Parse an ``MM/DD/YYYY`` expiration date string."""
+    try:
+        return datetime.strptime(raw, "%m/%d/%Y")
+    except (ValueError, TypeError):
+        return None
 
-    Returns a list of ``(week_start_date, records)`` tuples ordered oldest-first.
-    The ``_created_at`` key is stripped from each record before returning.
-    Records whose ``_created_at`` cannot be parsed are placed in the most recent
-    bucket.
+
+def extract_recent_by_expiration(records: list[dict], weeks: int = 4) -> list[dict]:
+    """Return the records most likely issued in the last *weeks* weeks.
+
+    TDLR licenses are issued for a 1-year term, so ``expiration ≈ issue + 1
+    year``.  We find the maximum expiration date in the dataset (representing
+    the most recently-issued license) and select all records expiring within
+    *weeks* weeks of that date.
     """
-    now = datetime.now(UTC)
-    # Build week boundaries: [now-4w, now-3w, now-2w, now-1w, now]
-    boundaries = [now - timedelta(weeks=weeks - i) for i in range(weeks + 1)]
-    buckets: list[tuple[datetime, list[dict]]] = [(boundaries[i], []) for i in range(weeks)]
+    # Parse all expiration dates and pair with records
+    dated = []
+    for r in records:
+        exp = _parse_expiration(r.get("license_expiration_date_mmddccyy", ""))
+        if exp:
+            dated.append((exp, r))
 
-    for record in records:
-        raw_ts = record.pop("_created_at", "")
-        ts = None
-        if raw_ts:
-            try:
-                # Socrata floating timestamps: 2026-03-15T00:00:00.000
-                ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
-                if ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=UTC)
-            except (ValueError, TypeError):
-                pass
+    if not dated:
+        logger.info("No parseable expiration dates found — cannot extract recent records")
+        return []
 
-        placed = False
-        if ts:
-            for i in range(weeks):
-                if boundaries[i] <= ts < boundaries[i + 1]:
-                    buckets[i][1].append(record)
-                    placed = True
-                    break
-        if not placed:
-            # Fallback: most recent bucket
-            buckets[-1][1].append(record)
+    max_exp = max(d[0] for d in dated)
+    cutoff = max_exp - timedelta(weeks=weeks)
+
+    recent = [r for exp, r in dated if exp >= cutoff]
+
+    logger.info(
+        "Extracted %d recently-issued records (expiration %s – %s)",
+        len(recent),
+        cutoff.strftime("%m/%d/%Y"),
+        max_exp.strftime("%m/%d/%Y"),
+    )
+    return recent
+
+
+def bucket_by_week(records: list[dict], weeks: int = 4) -> list[tuple[datetime, list[dict]]]:
+    """Distribute records across *weeks* weekly buckets by expiration date.
+
+    Returns ``(week_date, records)`` tuples ordered oldest-first.  Records
+    are sorted by expiration date and distributed evenly so each synthetic
+    week has a similar number of entries.
+    """
+    now = datetime.now()
+    week_dates = [now - timedelta(weeks=weeks - i) for i in range(weeks)]
+
+    # Sort by expiration so the oldest expirations land in the earliest bucket
+    sorted_records = sorted(
+        records,
+        key=lambda r: (
+            _parse_expiration(r.get("license_expiration_date_mmddccyy", "")) or datetime.min
+        ),
+    )
+
+    buckets: list[tuple[datetime, list[dict]]] = [(d, []) for d in week_dates]
+    for idx, record in enumerate(sorted_records):
+        bucket_idx = min(idx * weeks // max(len(sorted_records), 1), weeks - 1)
+        buckets[bucket_idx][1].append(record)
 
     return buckets
 

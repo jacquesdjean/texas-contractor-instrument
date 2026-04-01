@@ -3,7 +3,6 @@
 import logging
 import os
 import time
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import requests
@@ -59,8 +58,11 @@ def build_query(counties: list[str], license_types: list[str]) -> dict:
     }
 
 
-def _fetch_with_retry(params: dict, max_retries: int = 3, label: str = "TDLR") -> list[dict]:
-    """Shared fetch logic with retry/backoff for Socrata API calls."""
+def fetch_licenses(max_retries: int = 3) -> list[dict]:
+    """Fetch all matching TDLR licenses from the Socrata API with retry logic."""
+    counties, license_types = load_config()
+    params = build_query(counties, license_types)
+
     headers = {}
     app_token = os.environ.get("SOCRATA_APP_TOKEN")
     if app_token:
@@ -68,11 +70,11 @@ def _fetch_with_retry(params: dict, max_retries: int = 3, label: str = "TDLR") -
 
     for attempt in range(max_retries + 1):
         try:
-            logger.info("Fetching %s data (attempt %d/%d)", label, attempt + 1, max_retries + 1)
+            logger.info("Fetching TDLR data (attempt %d/%d)", attempt + 1, max_retries + 1)
             response = requests.get(BASE_URL, params=params, headers=headers, timeout=60)
             response.raise_for_status()
             records = response.json()
-            logger.info("Fetched %d records from %s API", len(records), label)
+            logger.info("Fetched %d records from TDLR API", len(records))
             return records
         except requests.RequestException as e:
             if attempt < max_retries:
@@ -82,34 +84,3 @@ def _fetch_with_retry(params: dict, max_retries: int = 3, label: str = "TDLR") -
             else:
                 logger.error("API request failed after %d retries: %s", max_retries, e)
                 raise
-
-
-def fetch_licenses(max_retries: int = 3) -> list[dict]:
-    """Fetch all matching TDLR licenses from the Socrata API with retry logic."""
-    counties, license_types = load_config()
-    params = build_query(counties, license_types)
-    return _fetch_with_retry(params, max_retries, label="TDLR")
-
-
-def fetch_recent_licenses(weeks: int = 4, max_retries: int = 3) -> list[dict]:
-    """Fetch TDLR licenses created in the last *weeks* weeks.
-
-    Uses the Socrata ``:created_at`` system field to identify records that were
-    recently added to the dataset.  Each returned record carries a temporary
-    ``_created_at`` key so callers can bucket results by week.
-    """
-    counties, license_types = load_config()
-    params = build_query(counties, license_types)
-
-    cutoff = (datetime.now(UTC) - timedelta(weeks=weeks)).strftime("%Y-%m-%dT%H:%M:%S")
-    params["$where"] += f" AND :created_at >= '{cutoff}'"
-    params["$select"] += ", :created_at"
-    params["$order"] = ":created_at"
-
-    records = _fetch_with_retry(params, max_retries, label="TDLR-recent")
-
-    # Preserve Socrata system field under a private key for bucketing
-    for r in records:
-        r["_created_at"] = r.pop(":created_at", "")
-
-    return records
