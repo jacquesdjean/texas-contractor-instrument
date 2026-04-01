@@ -183,15 +183,22 @@ def main():
     if all_scored and is_first_run:
         # First-run backfill: push records in weekly buckets so the sheet
         # mirrors the format of several normal weekly runs.
-        weekly_buckets = bucket_by_week(all_scored, weeks=4)
+        weekly_buckets = bucket_by_week(all_scored, weeks=_backfill_weeks() or 4)
         for week_start, bucket in weekly_buckets:
             if bucket:
                 bucket.sort(key=lambda r: r.get("_score", 0), reverse=True)
-                push_to_sheets(bucket, week_date=week_start)
+                ok = push_to_sheets(bucket, week_date=week_start)
+                logger.info(
+                    "Backfill week %s: %d records — %s",
+                    week_start.strftime("%m/%d/%Y"),
+                    len(bucket),
+                    "pushed" if ok else "FAILED",
+                )
         notification_results = notify(all_scored)
         logger.info("Notifications: %s", notification_results)
     elif all_scored:
-        push_to_sheets(all_scored)
+        ok = push_to_sheets(all_scored)
+        logger.info("Sheets push: %s", "pushed" if ok else "FAILED")
         notification_results = notify(all_scored)
         logger.info("Notifications: %s", notification_results)
     else:
