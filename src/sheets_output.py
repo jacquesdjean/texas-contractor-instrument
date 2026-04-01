@@ -51,13 +51,22 @@ def get_sheets_service():
         return None
 
     creds_json = json.loads(base64.b64decode(creds_b64))
+    logger.info(
+        "Sheets auth: service account = %s, project = %s",
+        creds_json.get("client_email", "MISSING"),
+        creds_json.get("project_id", "MISSING"),
+    )
     creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
     return build("sheets", "v4", credentials=creds)
 
 
 def ensure_tab_exists(service, sheet_id: str, tab_name: str):
     """Create the tab if it doesn't already exist in the spreadsheet."""
-    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    meta = (
+        service.spreadsheets()
+        .get(spreadsheetId=sheet_id, fields="sheets.properties.title")
+        .execute()
+    )
     existing = {s["properties"]["title"] for s in meta.get("sheets", [])}
     if tab_name not in existing:
         service.spreadsheets().batchUpdate(
@@ -141,6 +150,21 @@ def build_summary_row(records: list[dict], date_str: str, territory: str) -> lis
     ]
 
 
+def _normalize_sheet_id(raw: str) -> str:
+    """Extract the spreadsheet ID from a full Google Sheets URL or return as-is.
+
+    Accepts both plain IDs and full URLs like
+    ``https://docs.google.com/spreadsheets/d/<ID>/edit?...``.
+    """
+    if "/" in raw:
+        parts = raw.split("/")
+        try:
+            return parts[parts.index("d") + 1]
+        except (ValueError, IndexError):
+            pass
+    return raw.strip()
+
+
 def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None) -> bool:
     """Push scored records to Google Sheets. Returns True on success.
 
@@ -155,10 +179,13 @@ def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None
         logger.warning("Google Sheets credentials not configured — skipping Sheets output")
         return False
 
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
-    if not sheet_id:
+    raw_id = os.environ.get("GOOGLE_SHEET_ID", "")
+    if not raw_id:
         logger.warning("GOOGLE_SHEET_ID not set — skipping Sheets output")
         return False
+
+    sheet_id = _normalize_sheet_id(raw_id)
+    logger.info("Sheet ID: %s...%s (len=%d)", sheet_id[:4], sheet_id[-4:], len(sheet_id))
 
     ref_date = week_date or datetime.now()
     date_found = ref_date.strftime("%Y-%m-%d")
