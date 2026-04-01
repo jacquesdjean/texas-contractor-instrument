@@ -1,7 +1,7 @@
 {
-  "last_run": "2026-04-01T02:33:58.185703",
-  "total_fetched": 14883,
-  "new_licenses": 1577,
+  "last_run": "2026-04-01T03:20:59.856173",
+  "total_fetched": 156258,
+  "new_licenses": 12182,
   "removed_licenses": 0,
   "is_first_run": true,
   "tsbpe_fetched": 0,
@@ -9,6 +9,6 @@
   "notifications": {
     "slack_sent": false,
     "email_sent": false,
-    "high_priority_count": 509
+    "high_priority_count": 3907
   }
 }
