@@ -83,26 +83,31 @@ def extract_recent_by_expiration(records: list[dict], weeks: int = 4) -> list[di
     """Return the records most likely issued in the last *weeks* weeks.
 
     TDLR licenses are issued for a 1-year term, so ``expiration ≈ issue + 1
-    year``.  We select records whose expiration date falls between ``now +
-    (12 - weeks) weeks`` and the maximum observed expiration, which captures
-    the most recently-issued licenses in the dataset.
+    year``.  We find the maximum expiration date in the dataset (representing
+    the most recently-issued license) and select all records expiring within
+    *weeks* weeks of that date.
     """
-    now = datetime.now()
-    # Licenses issued in the last `weeks` weeks expire roughly 1 year from
-    # their issue date.  We look for expirations between ~11 months out and
-    # the furthest date in the dataset.
-    cutoff = now + timedelta(weeks=52 - weeks)
-
-    recent = []
+    # Parse all expiration dates and pair with records
+    dated = []
     for r in records:
         exp = _parse_expiration(r.get("license_expiration_date_mmddccyy", ""))
-        if exp and exp >= cutoff:
-            recent.append(r)
+        if exp:
+            dated.append((exp, r))
+
+    if not dated:
+        logger.info("No parseable expiration dates found — cannot extract recent records")
+        return []
+
+    max_exp = max(d[0] for d in dated)
+    cutoff = max_exp - timedelta(weeks=weeks)
+
+    recent = [r for exp, r in dated if exp >= cutoff]
 
     logger.info(
-        "Extracted %d recently-issued records (expiration >= %s)",
+        "Extracted %d recently-issued records (expiration %s – %s)",
         len(recent),
         cutoff.strftime("%m/%d/%Y"),
+        max_exp.strftime("%m/%d/%Y"),
     )
     return recent
 

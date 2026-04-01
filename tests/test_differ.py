@@ -217,29 +217,34 @@ class TestHistoricalIO:
 
 
 class TestExtractRecentByExpiration:
-    def test_selects_licenses_with_furthest_expiration(self):
-        now = datetime.now()
-        far_exp = (now + timedelta(weeks=51)).strftime("%m/%d/%Y")
-        old_exp = (now + timedelta(weeks=30)).strftime("%m/%d/%Y")
+    def test_selects_licenses_near_max_expiration(self):
+        # Record A expires 1 week before max, Record B expires 10 weeks before max
         records = [
-            {"license_number": "A", "license_expiration_date_mmddccyy": far_exp},
-            {"license_number": "B", "license_expiration_date_mmddccyy": old_exp},
+            {"license_number": "A", "license_expiration_date_mmddccyy": "01/06/2027"},
+            {"license_number": "B", "license_expiration_date_mmddccyy": "01/13/2027"},
+            {"license_number": "C", "license_expiration_date_mmddccyy": "10/01/2026"},
         ]
+        # weeks=4: cutoff = max(01/13/2027) - 4 weeks = ~12/16/2026
         recent = extract_recent_by_expiration(records, weeks=4)
-        assert len(recent) == 1
-        assert recent[0]["license_number"] == "A"
+        assert len(recent) == 2
+        numbers = {r["license_number"] for r in recent}
+        assert numbers == {"A", "B"}
 
-    def test_returns_empty_when_no_recent(self):
-        old_exp = "01/01/2020"
+    def test_all_within_window(self):
         records = [
-            {"license_number": "A", "license_expiration_date_mmddccyy": old_exp},
+            {"license_number": "A", "license_expiration_date_mmddccyy": "01/10/2027"},
+            {"license_number": "B", "license_expiration_date_mmddccyy": "01/13/2027"},
         ]
         recent = extract_recent_by_expiration(records, weeks=4)
-        assert recent == []
+        assert len(recent) == 2
 
     def test_handles_missing_expiration(self):
         records = [{"license_number": "A"}]
         recent = extract_recent_by_expiration(records, weeks=4)
+        assert recent == []
+
+    def test_handles_empty_records(self):
+        recent = extract_recent_by_expiration([], weeks=4)
         assert recent == []
 
 
