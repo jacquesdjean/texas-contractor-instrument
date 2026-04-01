@@ -70,8 +70,9 @@ cp .env.example .env
 python -m src.main
 ```
 
-> **Note:** The first run creates a baseline snapshot. New licenses are detected
-> starting from the second run.
+> **Note:** The first run automatically seeds the Google Sheet with ~4 weeks of
+> recent licenses so you have data immediately. Subsequent runs detect new
+> licenses by diffing against the previous week's snapshot.
 
 ## How It Works
 
@@ -126,15 +127,17 @@ texas-contractor-instrument/
 │   ├── license_types.yml           License type mappings for TDLR/TSBPE
 │   └── scoring.yml                 Base scores and bonus weights
 │
-├── tests/                          Test Suite (44 tests)
+├── tests/                          Test Suite (55 tests)
 │   ├── test_differ.py              Snapshot diffing tests
 │   ├── test_scorer.py              Scoring logic tests
 │   ├── test_notifications.py       Notification delivery tests
 │   └── fixtures/                   Sample API response data
 │
 ├── data/                           Runtime State (committed weekly by CI)
-│   ├── previous_snapshot.json      Current week's license numbers
-│   ├── historical_licenses.json    All-time cumulative license set
+│   ├── previous_snapshot.json      Current week's TDLR license numbers
+│   ├── tsbpe_previous_snapshot.json Current week's TSBPE license numbers
+│   ├── historical_licenses.json    All-time cumulative TDLR license set
+│   ├── tsbpe_historical_licenses.json All-time cumulative TSBPE license set
 │   └── run_log.json                Last execution metadata
 │
 ├── .github/workflows/              CI/CD Automation
@@ -165,6 +168,7 @@ main.py
  │   └── differ.diff_snapshots()           <-- tsbpe_previous_snapshot.json
  │
  ├── scorer.score_and_sort()               <-- Combined new licenses
+ ├── differ.bucket_by_week()               (first-run backfill only)
  ├── sheets_output.push_to_sheets()        --> Google Sheets API
  ├── notifications.notify()                --> Slack / Email
  └── update_run_log()                      --> run_log.json
@@ -271,7 +275,7 @@ The weekly scan runs automatically via GitHub Actions every Monday at 7:00 AM CT
 |-----------------------|----------|--------------------------------------------|
 | `SOCRATA_APP_TOKEN`   | Optional | Socrata app token (avoids API throttling)  |
 | `GOOGLE_SHEETS_CREDS` | Optional | Base64-encoded service account JSON        |
-| `GOOGLE_SHEET_ID`     | Optional | Target Google Sheet ID                     |
+| `GOOGLE_SHEET_ID`     | Optional | Target Google Sheet ID or full URL          |
 | `SLACK_WEBHOOK_URL`   | Optional | Slack incoming webhook URL                 |
 | `SMTP_HOST`           | Optional | SMTP server hostname                       |
 | `SMTP_PORT`           | Optional | SMTP port (default: 587)                   |
@@ -288,12 +292,15 @@ The weekly scan runs automatically via GitHub Actions every Monday at 7:00 AM CT
 3. Base64-encode it: `base64 -w 0 service-account.json`
 4. Add as `GOOGLE_SHEETS_CREDS` secret
 5. Share your target Google Sheet with the service account email
-6. Create two tabs: **New Licenses** and **Weekly Summary**
+6. The **New Licenses** and **Weekly Summary** tabs are created automatically on first run
 
 #### Manual Trigger
 
 The weekly scan can also be triggered manually via the GitHub Actions
-`workflow_dispatch` event.
+`workflow_dispatch` event. When triggering manually, you can set the
+**`backfill_weeks`** input to seed the sheet with N weeks of recent licenses
+(useful for populating a fresh sheet with historical data). Set to `0` for a
+normal run.
 
 ## Local Development
 
@@ -340,7 +347,7 @@ test-cov        Run tests with coverage report
 ## Testing
 
 ```bash
-make test              # Run all 44 tests
+make test              # Run all 55 tests
 make test-cov          # Run with coverage report
 python -m pytest tests/test_differ.py -v   # Run specific test file
 ```
@@ -348,14 +355,16 @@ python -m pytest tests/test_differ.py -v   # Run specific test file
 The test suite covers:
 
 - **Snapshot diffing** — new, removed, and reinstated license detection
+- **Backfill logic** — expiration-based extraction, weekly bucketing
 - **Scoring logic** — base scores, bonus calculations, phone formatting
 - **Notifications** — Slack and email delivery for high-priority licenses
 
 ## FAQ
 
-**Q: Why does the first run report zero new licenses?**
-The first run creates a baseline snapshot of all existing licenses. New licenses
-are detected by comparing against this baseline on subsequent runs.
+**Q: What happens on the first run?**
+The first run seeds the Google Sheet with approximately 4 weeks of recent
+licenses (identified by expiration date proximity) and saves a baseline snapshot.
+Subsequent runs detect new licenses by diffing against this baseline.
 
 **Q: How often does the monitor run?**
 Weekly, every Monday at 7:00 AM Central Time via GitHub Actions. It can also be
