@@ -1,4 +1,5 @@
-# Counties to monitor for new contractor licenses
+# Counties used for scoring bonuses (primary counties get +15 points)
+# Data is fetched statewide; this config only affects score ranking
 # Field: business_county (uppercase values in TDLR API)
 
 primary_counties:

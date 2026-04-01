@@ -2,7 +2,7 @@
 
 # TDLR License Monitor
 
-**Automated detection and scoring of newly licensed contractors in Central Texas**
+**Automated detection and scoring of newly licensed contractors across Texas**
 
 [![CI](https://github.com/jacquesdjean/texas-contractor-instrument/actions/workflows/ci.yml/badge.svg)](https://github.com/jacquesdjean/texas-contractor-instrument/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -19,13 +19,14 @@
 ## Overview
 
 TDLR License Monitor is an automated pipeline that detects **newly licensed**
-contractors in Central Texas by monitoring government datasets from the Texas
+contractors across Texas by monitoring government datasets from the Texas
 Department of Licensing and Regulation (TDLR) and the Texas State Board of
 Plumbing Examiners (TSBPE).
 
-Each week, it queries the Texas Open Data Portal via the Socrata SODA API,
-diffs snapshots to identify new license numbers, scores them by recruitment
-value, and pushes results to Google Sheets with optional Slack and email
+Each week, it queries the Texas Open Data Portal via the Socrata SODA API
+for all matching license types statewide, diffs snapshots to identify new
+license numbers, scores them by recruitment value (with bonuses for Central
+Texas), and pushes results to Google Sheets with optional Slack and email
 notifications.
 
 ### Key Features
@@ -36,6 +37,7 @@ notifications.
 - **Recruitment scoring** (0-130 scale) based on license type, location, and contact info
 - **Google Sheets integration** with structured weekly summary and individual lead tabs
 - **Slack and email notifications** for high-priority licenses (score >= 90)
+- **Statewide coverage** with configurable scoring bonuses for priority counties
 - **Fully configurable** via YAML — territory, license types, scoring weights
 
 ## Table of Contents
@@ -181,7 +183,8 @@ are needed to customize behavior.
 
 ### Territory (`config/territory.yml`)
 
-Defines the geographic scope of license monitoring.
+Defines priority counties for scoring bonuses. Data is fetched statewide;
+this config only affects how results are ranked.
 
 ```yaml
 primary_counties:    # +15 scoring bonus
@@ -382,6 +385,11 @@ plumbing license tracking.
 The scraper includes exponential backoff retry logic. If the API is
 unresponsive after retries, the run will fail and can be retried via
 `workflow_dispatch`.
+
+**Q: Does it cover all of Texas?**
+Yes. Data is fetched statewide for all configured license types. Central Texas
+counties (Travis, Williamson, Hays) receive a scoring bonus to prioritize local
+leads, but all Texas contractors are tracked.
 
 **Q: Can I run this for other states?**
 The architecture supports any Socrata-based state data portal. You would need to

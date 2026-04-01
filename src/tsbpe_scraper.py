@@ -10,25 +10,15 @@ can process TSBPE records identically to TDLR records.
 import logging
 import os
 import time
-from pathlib import Path
 
 import requests
-import yaml
 
 logger = logging.getLogger(__name__)
 
-# TSBPE dataset on Texas Open Data Portal
-BASE_URL = "https://data.texas.gov/resource/7358-krk7.json"
-# Note: The actual TSBPE dataset ID will need to be confirmed.
-# TSBPE may use a different dataset identifier. For now, this module
-# provides the framework — the correct endpoint must be verified at
-# https://data.texas.gov by searching for "TSBPE" or "plumbing".
-
 TSBPE_BASE_URL = "https://data.texas.gov/resource/qced-zkby.json"
 
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+PAGE_SIZE = 50000
 
-# TSBPE license types relevant to our territory
 PLUMBING_LICENSE_TYPES = [
     "Master Plumber",
     "Journeyman Plumber",
@@ -55,76 +45,45 @@ TSBPE_FIELDS = [
 ]
 
 
-def load_territory() -> list[str]:
-    """Load territory counties from config."""
-    with open(CONFIG_DIR / "territory.yml") as f:
-        territory = yaml.safe_load(f)
-    return territory["primary_counties"] + territory["secondary_counties"]
-
-
-def build_tsbpe_query(counties: list[str]) -> dict:
-    """Build SODA API query for TSBPE plumbing licenses."""
-    county_clause = " OR ".join(f"business_county='{c}'" for c in counties)
+def build_tsbpe_query(offset: int = 0) -> dict:
+    """Build SODA API query for TSBPE plumbing licenses (statewide, paginated)."""
     type_clause = " OR ".join(f"license_type='{t}'" for t in PLUMBING_LICENSE_TYPES)
-    where = f"({county_clause}) AND ({type_clause})"
 
     return {
-        "$where": where,
-        "$limit": 50000,
+        "$where": type_clause,
+        "$limit": PAGE_SIZE,
+        "$offset": offset,
         "$order": "license_number",
     }
 
 
-def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
-    """Fetch plumbing licenses from TSBPE via Socrata API.
+def _normalize_record(r: dict) -> dict:
+    """Normalize a TSBPE record to match TDLR shape."""
+    return {
+        "license_type": r.get("license_type", ""),
+        "license_number": f"TSBPE-{r.get('license_number', '')}",
+        "license_subtype": "",
+        "business_name": r.get("business_name", ""),
+        "business_county": r.get("business_county", ""),
+        "business_address_line1": r.get("business_address_line1", ""),
+        "business_city_state_zip": r.get("business_city_state_zip", ""),
+        "business_telephone": r.get("business_telephone", ""),
+        "owner_name": r.get("owner_name", ""),
+        "owner_telephone": r.get("owner_telephone", ""),
+        "mailing_address_county": r.get("mailing_address_county", ""),
+        "license_expiration_date_mmddccyy": r.get("license_expiration_date_mmddccyy", ""),
+        "business_mailing": r.get("business_mailing"),
+        "_source": "TSBPE",
+    }
 
-    Returns records in the same shape as TDLR records for compatibility
-    with the differ and scorer modules.
-    """
-    counties = load_territory()
-    params = build_tsbpe_query(counties)
 
-    headers = {}
-    app_token = os.environ.get("SOCRATA_APP_TOKEN")
-    if app_token:
-        headers["X-App-Token"] = app_token
-
+def _fetch_page(params: dict, headers: dict, max_retries: int = 3) -> list[dict]:
+    """Fetch a single page from the TSBPE Socrata API with retry logic."""
     for attempt in range(max_retries + 1):
         try:
-            logger.info(
-                "Fetching TSBPE plumbing data (attempt %d/%d)", attempt + 1, max_retries + 1
-            )
             response = requests.get(TSBPE_BASE_URL, params=params, headers=headers, timeout=60)
             response.raise_for_status()
-            records = response.json()
-
-            # Normalize records to match TDLR shape for compatibility
-            normalized = []
-            for r in records:
-                normalized.append(
-                    {
-                        "license_type": r.get("license_type", ""),
-                        "license_number": f"TSBPE-{r.get('license_number', '')}",
-                        "license_subtype": "",
-                        "business_name": r.get("business_name", ""),
-                        "business_county": r.get("business_county", ""),
-                        "business_address_line1": r.get("business_address_line1", ""),
-                        "business_city_state_zip": r.get("business_city_state_zip", ""),
-                        "business_telephone": r.get("business_telephone", ""),
-                        "owner_name": r.get("owner_name", ""),
-                        "owner_telephone": r.get("owner_telephone", ""),
-                        "mailing_address_county": r.get("mailing_address_county", ""),
-                        "license_expiration_date_mmddccyy": r.get(
-                            "license_expiration_date_mmddccyy", ""
-                        ),
-                        "business_mailing": r.get("business_mailing"),
-                        "_source": "TSBPE",
-                    }
-                )
-
-            logger.info("Fetched %d plumbing records from TSBPE", len(normalized))
-            return normalized
-
+            return response.json()
         except requests.RequestException as e:
             if attempt < max_retries:
                 wait = 2 ** (attempt + 1)
@@ -133,3 +92,26 @@ def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
             else:
                 logger.error("TSBPE API request failed after %d retries: %s", max_retries, e)
                 raise
+
+
+def fetch_plumbing_licenses(max_retries: int = 3) -> list[dict]:
+    """Fetch all plumbing licenses from TSBPE via Socrata API (statewide, paginated)."""
+    headers = {}
+    app_token = os.environ.get("SOCRATA_APP_TOKEN")
+    if app_token:
+        headers["X-App-Token"] = app_token
+
+    all_records: list[dict] = []
+    offset = 0
+
+    while True:
+        params = build_tsbpe_query(offset=offset)
+        logger.info("Fetching TSBPE plumbing data (offset %d)", offset)
+        page = _fetch_page(params, headers, max_retries)
+        all_records.extend(_normalize_record(r) for r in page)
+        if len(page) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
+
+    logger.info("Fetched %d plumbing records from TSBPE", len(all_records))
+    return all_records
