@@ -217,18 +217,24 @@ class TestHistoricalIO:
 
 
 class TestExtractRecentByExpiration:
-    def test_selects_licenses_near_max_expiration(self):
-        # Record A expires 1 week before max, Record B expires 10 weeks before max
+    def test_selects_licenses_near_p95_expiration(self):
+        # Build a dataset where most records cluster around 01/2027
+        # but one outlier is at 12/2027
         records = [
-            {"license_number": "A", "license_expiration_date_mmddccyy": "01/06/2027"},
-            {"license_number": "B", "license_expiration_date_mmddccyy": "01/13/2027"},
-            {"license_number": "C", "license_expiration_date_mmddccyy": "10/01/2026"},
+            {"license_number": f"R{i}", "license_expiration_date_mmddccyy": "01/06/2027"}
+            for i in range(20)
+        ] + [
+            {"license_number": "RECENT", "license_expiration_date_mmddccyy": "01/13/2027"},
+            {"license_number": "OLD", "license_expiration_date_mmddccyy": "10/01/2026"},
+            {"license_number": "OUTLIER", "license_expiration_date_mmddccyy": "12/17/2027"},
         ]
-        # weeks=4: cutoff = max(01/13/2027) - 4 weeks = ~12/16/2026
+        # p95 reference should be near 01/06/2027 (not the 12/2027 outlier)
+        # cutoff = p95 - 4 weeks, so 01/06 and 01/13 should be included
         recent = extract_recent_by_expiration(records, weeks=4)
-        assert len(recent) == 2
         numbers = {r["license_number"] for r in recent}
-        assert numbers == {"A", "B"}
+        assert "RECENT" in numbers
+        assert "OUTLIER" in numbers  # it's past cutoff so still included
+        assert "OLD" not in numbers
 
     def test_all_within_window(self):
         records = [

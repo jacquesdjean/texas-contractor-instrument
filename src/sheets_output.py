@@ -55,8 +55,21 @@ def get_sheets_service():
     return build("sheets", "v4", credentials=creds)
 
 
+def ensure_tab_exists(service, sheet_id: str, tab_name: str):
+    """Create the tab if it doesn't already exist in the spreadsheet."""
+    meta = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    existing = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if tab_name not in existing:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=sheet_id,
+            body={"requests": [{"addSheet": {"properties": {"title": tab_name}}}]},
+        ).execute()
+        logger.info("Created tab '%s'", tab_name)
+
+
 def ensure_headers(service, sheet_id: str, tab_name: str, headers: list[str]):
     """Add header row to a tab if it's empty."""
+    ensure_tab_exists(service, sheet_id, tab_name)
     result = (
         service.spreadsheets()
         .values()
