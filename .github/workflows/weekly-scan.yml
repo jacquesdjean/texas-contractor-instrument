@@ -3,7 +3,12 @@ name: TDLR License Monitor
 on:
   schedule:
     - cron: '0 13 * * 1'  # 13:00 UTC = 7:00 AM CT on Monday
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      backfill_weeks:
+        description: 'Seed the sheet with N weeks of recent licenses (0 = normal run)'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
@@ -34,6 +39,7 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
           ENABLE_TSBPE: ${{ secrets.ENABLE_TSBPE }}
+          BACKFILL_WEEKS: ${{ github.event.inputs.backfill_weeks || '0' }}
 
       - name: Commit updated snapshot
         run: |

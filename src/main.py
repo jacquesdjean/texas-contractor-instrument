@@ -59,8 +59,17 @@ def update_run_log(
     logger.info("Run log updated: %s", log_entry)
 
 
+def _backfill_weeks() -> int:
+    """Return the number of weeks to backfill, or 0 if disabled."""
+    raw = os.environ.get("BACKFILL_WEEKS", "")
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return 0
+
+
 def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
-    """Run the TDLR license pipeline. Returns (scored_records, total, removed_count, is_first_run)."""
+    """Run the TDLR license pipeline. Returns (scored_records, total, removed_count, is_backfill)."""
     try:
         current_records = fetch_licenses()
     except Exception:
@@ -69,8 +78,20 @@ def run_tdlr_pipeline() -> tuple[list[dict], int, int, bool]:
 
     logger.info("Fetched %d TDLR records", len(current_records))
 
-    # On first run, extract recently-issued licenses from the full dataset
-    # using expiration dates as a proxy (expiration ≈ issue date + 1 year).
+    backfill = _backfill_weeks()
+
+    if backfill:
+        # BACKFILL_WEEKS is set — skip normal diff, extract recent licenses
+        # directly from the full dataset and push them to the sheet.
+        logger.info("BACKFILL_WEEKS=%d — extracting recent TDLR licenses", backfill)
+        recent = extract_recent_by_expiration(current_records, weeks=backfill)
+        if recent:
+            scored = score_and_sort(recent)
+            return scored, len(current_records), 0, True
+        logger.info("No recent TDLR licenses found for backfill")
+        return [], len(current_records), 0, True
+
+    # Normal run: first-run detection + snapshot diffing
     recent_records = None
     if load_snapshot() is None:
         logger.info("First run detected — extracting recent TDLR licenses for backfill")
@@ -113,7 +134,17 @@ def run_tsbpe_pipeline() -> tuple[list[dict], int, bool]:
 
     logger.info("Fetched %d TSBPE plumbing records", len(plumbing_records))
 
-    # On first run, extract recently-issued licenses for backfill
+    backfill = _backfill_weeks()
+
+    if backfill:
+        logger.info("BACKFILL_WEEKS=%d — extracting recent TSBPE licenses", backfill)
+        recent = extract_recent_by_expiration(plumbing_records, weeks=backfill)
+        if recent:
+            scored = score_and_sort(recent)
+            return scored, len(plumbing_records), True
+        return [], len(plumbing_records), True
+
+    # Normal run
     recent_records = None
     if load_snapshot(TSBPE_SNAPSHOT_PATH) is None:
         logger.info("TSBPE first run detected — extracting recent licenses for backfill")
