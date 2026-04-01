@@ -205,7 +205,7 @@ def push_to_sheets(scored_records: list[dict], week_date: datetime | None = None
         logger.info("Appended %d rows to '%s' tab", len(rows), NEW_LICENSES_TAB)
 
         # Weekly summary
-        summary_row = build_summary_row(scored_records, week_of, "Central Texas")
+        summary_row = build_summary_row(scored_records, week_of, "Statewide")
         service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
             range=f"'{WEEKLY_SUMMARY_TAB}'!A1",
